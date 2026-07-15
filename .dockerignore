@@ -1,0 +1,9 @@
+# Не тащим в build-контекст лишнее.
+.git
+.github
+*.md
+deploy/
+install.sh
+*.log
+deploystack
+deploystack-*

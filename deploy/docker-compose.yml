@@ -1,0 +1,70 @@
+# OpenClaw Stack — оркестрация контейнеров.
+# Значения берутся из .env, который генерирует установщик (секреты + токен бота).
+# Этот файл лежит в GitHub-репозитории и скачивается при установке.
+
+services:
+  # --- OmniRoute: единый AI-шлюз с бесплатными моделями ---
+  omniroute:
+    image: ghcr.io/diegosouzapw/omniroute:latest
+    container_name: omniroute
+    restart: always
+    ports:
+      - "127.0.0.1:${OMNIROUTE_PORT:-20128}:${OMNIROUTE_PORT:-20128}"
+    environment:
+      PORT: ${OMNIROUTE_PORT:-20128}
+      INITIAL_PASSWORD: ${INITIAL_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      API_KEY_SECRET: ${API_KEY_SECRET}
+      STORAGE_ENCRYPTION_KEY: ${STORAGE_ENCRYPTION_KEY}
+      # Автоподключение бесплатных пулов моделей при первом старте.
+      OMNIROUTE_ENABLE_FREE_MODELS: ${OMNIROUTE_ENABLE_FREE_MODELS:-true}
+    volumes:
+      - omniroute-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:${OMNIROUTE_PORT:-20128}/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  # --- OpenClaw: агент; ведёт Telegram-канал сам ---
+  openclaw-gateway:
+    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:latest}
+    container_name: openclaw-gateway
+    restart: always
+    depends_on:
+      - omniroute
+    ports:
+      - "127.0.0.1:${OPENCLAW_PORT:-18789}:${OPENCLAW_PORT:-18789}"
+    environment:
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+      OPENCLAW_SANDBOX: ${OPENCLAW_SANDBOX:-1}
+      # OpenClaw ходит за моделями в OmniRoute (единый endpoint /v1).
+      OPENAI_BASE_URL: http://omniroute:${OMNIROUTE_PORT:-20128}/v1
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+    volumes:
+      - openclaw-config:/home/node/.openclaw
+      - openclaw-secrets:/home/node/.config/openclaw
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:${OPENCLAW_PORT:-18789}/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # --- CLI-сайдкар OpenClaw: используется установщиком для `channels add` ---
+  openclaw-cli:
+    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:latest}
+    profiles: ["cli"] # не поднимается при обычном up, только `run --rm openclaw-cli`
+    network_mode: "service:openclaw-gateway"
+    environment:
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+    volumes:
+      - openclaw-config:/home/node/.openclaw
+      - openclaw-secrets:/home/node/.config/openclaw
+    entrypoint: ["openclaw"]
+
+volumes:
+  omniroute-data:
+  openclaw-config:
+  openclaw-secrets:

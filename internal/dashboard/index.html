@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenClaw Stack — Мониторинг</title>
+<style>
+  :root { --bg:#0f1115; --card:#1a1d24; --up:#2ecc71; --down:#e74c3c; --warn:#f39c12; --muted:#8b93a1; --fg:#e6e9ef; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 system-ui,Segoe UI,Roboto,sans-serif; }
+  header { padding:16px 24px; border-bottom:1px solid #262a33; display:flex; justify-content:space-between; align-items:center; }
+  header h1 { font-size:18px; margin:0; }
+  #updated { color:var(--muted); font-size:12px; }
+  main { padding:24px; max-width:1100px; margin:0 auto; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; }
+  .card { background:var(--card); border:1px solid #262a33; border-radius:12px; padding:16px; }
+  .svc-head { display:flex; justify-content:space-between; align-items:center; }
+  .svc-name { font-weight:600; font-size:16px; }
+  .badge { padding:2px 10px; border-radius:999px; font-size:12px; font-weight:600; }
+  .b-up { background:rgba(46,204,113,.15); color:var(--up); }
+  .b-down { background:rgba(231,76,60,.15); color:var(--down); }
+  .b-restarting { background:rgba(243,156,18,.15); color:var(--warn); }
+  .b-unknown { background:rgba(139,147,161,.15); color:var(--muted); }
+  .metrics { display:flex; gap:16px; margin:12px 0; }
+  .metric { flex:1; }
+  .metric .val { font-size:20px; font-weight:600; }
+  .metric .lbl { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+  .err { color:var(--down); font-size:12px; margin-top:4px; }
+  button { background:#2b6cb0; color:#fff; border:0; border-radius:8px; padding:8px 12px; cursor:pointer; font-size:13px; }
+  button:hover { background:#3182ce; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  section h2 { font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin:28px 0 12px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  td, th { padding:6px 8px; border-bottom:1px solid #262a33; text-align:left; }
+  pre#logs { background:#0b0d11; border:1px solid #262a33; border-radius:8px; padding:12px; max-height:320px; overflow:auto; font-size:12px; white-space:pre-wrap; }
+  .ok-dot { color:var(--up); } .fail-dot { color:var(--down); }
+</style>
+</head>
+<body>
+<header>
+  <h1>OpenClaw Stack — мониторинг</h1>
+  <span id="updated">обновление…</span>
+</header>
+<main>
+  <div class="grid" id="services"></div>
+
+  <section>
+    <h2>История рестартов</h2>
+    <table id="history"><tbody><tr><td>нет данных</td></tr></tbody></table>
+  </section>
+
+  <section>
+    <h2>Последние логи</h2>
+    <pre id="logs">загрузка…</pre>
+  </section>
+</main>
+
+<script>
+const BADGE = { up:'b-up', down:'b-down', restarting:'b-restarting', unknown:'b-unknown' };
+const LABEL = { up:'работает', down:'упал', restarting:'перезагрузка', unknown:'неизвестно' };
+
+async function restart(service, btn) {
+  btn.disabled = true; btn.textContent = 'перезапуск…';
+  try {
+    const r = await fetch('/api/restart?service=' + encodeURIComponent(service), { method:'POST' });
+    if (!r.ok) { const j = await r.json().catch(()=>({})); alert('Ошибка: ' + (j.error||r.status)); }
+  } catch (e) { alert('Сеть недоступна: ' + e); }
+  setTimeout(refresh, 1500);
+}
+
+function renderServices(list) {
+  const root = document.getElementById('services');
+  root.innerHTML = '';
+  for (const s of list) {
+    const sp = s.spec, h = s.health;
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML = `
+      <div class="svc-head">
+        <span class="svc-name">${sp.name}</span>
+        <span class="badge ${BADGE[h]||'b-unknown'}">${LABEL[h]||h}</span>
+      </div>
+      <div class="metrics">
+        <div class="metric"><div class="val">${(s.stats.cpu_percent||0).toFixed(1)}%</div><div class="lbl">CPU</div></div>
+        <div class="metric"><div class="val">${(s.stats.mem_usage_mb||0).toFixed(0)} МБ</div><div class="lbl">RAM</div></div>
+        <div class="metric"><div class="val">${s.restart_count||0}</div><div class="lbl">рестартов</div></div>
+      </div>
+      ${s.last_error ? `<div class="err">${s.last_error}</div>` : ''}
+      <button data-svc="${sp.name}">Перезагрузить</button>
+    `;
+    el.querySelector('button').addEventListener('click', (e) => restart(sp.name, e.target));
+    root.appendChild(el);
+  }
+}
+
+function renderHistory(hist) {
+  const body = document.querySelector('#history tbody');
+  if (!hist || !hist.length) { body.innerHTML = '<tr><td>рестартов не было</td></tr>'; return; }
+  body.innerHTML = '<tr><th>Время</th><th>Сервис</th><th>Причина</th><th>Итог</th></tr>' +
+    hist.slice().reverse().map(e => `
+      <tr>
+        <td>${new Date(e.time).toLocaleString('ru-RU')}</td>
+        <td>${e.service}</td>
+        <td>${e.reason}</td>
+        <td class="${e.success?'ok-dot':'fail-dot'}">${e.success?'✓ ок':'✗ ошибка'}</td>
+      </tr>`).join('');
+}
+
+async function refresh() {
+  try {
+    const r = await fetch('/api/status');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    renderServices(data.services || []);
+    renderHistory(data.history || []);
+    document.getElementById('logs').textContent = (data.logs || []).join('\n');
+    document.getElementById('updated').textContent = 'обновлено ' + new Date().toLocaleTimeString('ru-RU');
+  } catch (e) {
+    document.getElementById('updated').textContent = 'ошибка обновления: ' + e.message;
+  }
+}
+
+refresh();
+setInterval(refresh, 5000); // реал-тайм: опрос раз в 5 секунд
+</script>
+</body>
+</html>
