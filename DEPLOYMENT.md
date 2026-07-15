@@ -13,17 +13,20 @@
 
 ## Часть A — подготовка репозитория (мейнтейнер, разово)
 
-### A1. Заменить плейсхолдеры на реальный репозиторий
+### A1. Репозиторий проекта
 
-В двух местах указан `your-org/openclaw-stack` — замените на свой `<owner>/<repo>`:
+Проект уже настроен на **`sashik08/openclaw-stack`** — специально менять ничего не нужно.
+Репозиторий прописан в двух местах:
 
 1. `install.sh` — переменные `REPO` и `RAW` в начале файла.
 2. `internal/config/config.go` — поле `RepoRawURL` в `Defaults()` (база raw-ссылок, откуда
    тянется `docker-compose.yml`).
 
+Если форкаете под другой аккаунт `<owner>/<repo>` — замените там же (либо переопределите на лету
+через env `OPENCLAW_STACK_REPO` / `OPENCLAW_STACK_RAW`, не трогая код):
+
 ```bash
-# пример массовой замены (проверьте перед коммитом)
-sed -i 's#your-org/openclaw-stack#myorg/openclaw-stack#g' install.sh internal/config/config.go
+sed -i 's#sashik08/openclaw-stack#<owner>/<repo>#g' install.sh internal/config/config.go
 ```
 
 ### A2. Сверить теги образов апстрима

@@ -62,7 +62,7 @@ func Defaults() *Config {
 		OmnirouteStorageKey:  RandSecret(32),
 		OpenClawGatewayToken: RandSecret(32),
 		InstallDir:           filepath.Join(home, ".openclaw-stack"),
-		RepoRawURL:           "https://raw.githubusercontent.com/your-org/openclaw-stack/main/deploy",
+		RepoRawURL:           "https://raw.githubusercontent.com/sashik08/openclaw-stack/main/deploy",
 	}
 }
 

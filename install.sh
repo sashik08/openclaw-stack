@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # Единый установщик OpenClaw Stack.
 # Одна команда для пользователя:
-#   curl -fsSL https://raw.githubusercontent.com/your-org/openclaw-stack/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/sashik08/openclaw-stack/main/install.sh | bash
 #
 # Скрипт: ставит Go при отсутствии (нужен для сборки бинаря установщика),
 # собирает/скачивает бинарь `deploystack` и запускает интерактивную установку.
 # Всю тяжёлую логику (Docker, конфиги, контейнеры, мониторинг) делает Go-бинарь.
 set -euo pipefail
 
-REPO="${OPENCLAW_STACK_REPO:-https://github.com/your-org/openclaw-stack}"
-RAW="${OPENCLAW_STACK_RAW:-https://raw.githubusercontent.com/your-org/openclaw-stack/main}"
+REPO="${OPENCLAW_STACK_REPO:-https://github.com/sashik08/openclaw-stack}"
+RAW="${OPENCLAW_STACK_RAW:-https://raw.githubusercontent.com/sashik08/openclaw-stack/main}"
 BIN_DIR="/usr/local/bin"
 BIN="deploystack"
 

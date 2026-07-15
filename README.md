@@ -36,13 +36,13 @@
 Интерактивно (спросит тип развёртывания и токен бота):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/your-org/openclaw-stack/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/sashik08/openclaw-stack/main/install.sh | sudo bash
 ```
 
 Неинтерактивно (для автоматизации / CI):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/your-org/openclaw-stack/main/install.sh | sudo bash -s -- \
+curl -fsSL https://raw.githubusercontent.com/sashik08/openclaw-stack/main/install.sh | sudo bash -s -- \
   --target vps --public-host 203.0.113.10 \
   --bot-token 123456:ABC... \
   --dashboard-user admin --dashboard-pass 'S3cret!' \
@@ -218,8 +218,9 @@ go build -o deploystack ./cmd/deploystack
 
 ## Замечания по боевому использованию
 
-- Плейсхолдеры `your-org/openclaw-stack` в `install.sh` и `config.Defaults().RepoRawURL`
-  замените на реальный репозиторий, куда положите `install.sh` и `deploy/docker-compose.yml`.
+- Репозиторий в `install.sh` и `config.Defaults().RepoRawURL` уже настроен на
+  `sashik08/openclaw-stack` (форкнули под другой аккаунт — поменяйте на свой; переопределяется и
+  на лету через env `OPENCLAW_STACK_REPO` / `OPENCLAW_STACK_RAW`).
   Для готовых бинарей `install.sh` ждёт их в GitHub Releases (`deploystack-<os>-<arch>`); если
   релиза нет — соберёт из исходников (нужен Go, ставится автоматически).
 - Точные теги образов (`ghcr.io/openclaw/openclaw:latest`, `ghcr.io/diegosouzapw/omniroute:latest`)
