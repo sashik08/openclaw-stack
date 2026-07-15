@@ -3,10 +3,13 @@ name: Release
 # Собирает статические бинари deploystack-<os>-<arch> и прикладывает их к
 # GitHub Release. Именно эти ассеты скачивает install.sh:
 #   $REPO/releases/latest/download/deploystack-linux-amd64
+#
+# Сборка вынесена в matrix-job (артефакты), публикация — в ОДИН отдельный job.
+# Это исключает гонку, когда несколько matrix-джоб одновременно создают релиз.
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch: # ручной запуск без тега (соберёт артефакты, но не релиз)
+  workflow_dispatch: # ручной запуск: соберёт артефакты, но релиз не публикует
 
 permissions:
   contents: write # нужно для создания релиза и загрузки ассетов
@@ -42,15 +45,23 @@ jobs:
       - name: Загрузка артефакта сборки
         uses: actions/upload-artifact@v4
         with:
-          name: deploystack-${{ matrix.goos }}-${{ matrix.goarch }}
+          name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
           path: |
             deploystack-${{ matrix.goos }}-${{ matrix.goarch }}
             deploystack-${{ matrix.goos }}-${{ matrix.goarch }}.sha256
 
-      - name: Прикрепить к релизу (только на теге v*)
-        if: startsWith(github.ref, 'refs/tags/v')
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Скачать все артефакты в dist/
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Опубликовать релиз (все бинари разом)
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            deploystack-${{ matrix.goos }}-${{ matrix.goarch }}
-            deploystack-${{ matrix.goos }}-${{ matrix.goarch }}.sha256
+          files: dist/*
